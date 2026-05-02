@@ -165,7 +165,7 @@ button:active {
   color: #FFF;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
-/* --- НОВЫЕ СТИЛИ ДЛЯ ВВОДА И КНОПОК --- */
+/* --- ОБНОВЛЕННЫЕ СТИЛИ ДЛЯ ВВОДА И КНОПОК --- */
 
 .header-row {
     display: flex;
@@ -173,37 +173,25 @@ button:active {
     align-items: flex-start;
 }
 
-.reset-btn {
-    background: transparent;
-    color: #8E8E9E;
-    font-size: 20px;
-    padding: 8px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    margin-top: 5px;
-}
-
-.reset-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #FFF;
-}
-
-.deposit-row {
+.deposit-column {
     display: flex;
+    flex-direction: column; /* Теперь элементы друг под другом */
     gap: 12px;
     width: 100%;
+    margin-bottom: 24px;
 }
 
 .deposit-input {
-    flex-grow: 1;
+    width: 100%;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #FFF;
-    font-size: 16px;
-    padding: 0 16px;
+    font-size: 15px;
+    padding: 18px 16px;
     border-radius: 16px;
     outline: none;
     transition: border-color 0.3s;
+    box-sizing: border-box;
 }
 
 .deposit-input:focus {
@@ -213,17 +201,34 @@ button:active {
 .main-btn-small {
     background: linear-gradient(135deg, #FF5E00, #FF9100);
     color: #FFF;
-    min-width: 110px;
-    padding: 16px;
+    width: 100%;
+    padding: 18px;
     border-radius: 16px;
     box-shadow: 0 4px 15px rgba(255, 94, 0, 0.2);
+    font-size: 15px;
 }
 
 .micro-btn-small {
     background: rgba(255, 255, 255, 0.08);
     color: #FFF;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    min-width: 110px;
+    width: 100%;
+    padding: 18px;
+    border-radius: 16px;
+    font-size: 15px;
+}
+
+.reset-project-btn {
+    width: 100%;
+    background: transparent;
+    color: #FF4444;
+    border: 1px solid rgba(255, 68, 68, 0.3);
     padding: 16px;
     border-radius: 16px;
+    margin-top: 40px;
+    font-size: 14px;
+}
+
+.reset-project-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
 }

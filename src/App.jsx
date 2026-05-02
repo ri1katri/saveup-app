@@ -15,11 +15,12 @@ function App() {
   const [inputArea, setInputArea] = useState('');
   const [inputPrice, setInputPrice] = useState('');
 
-  // Состояния для кастомного ввода депозитов
+  // Состояния для кастомного ввода
   const [customMainInput, setCustomMainInput] = useState('');
   const [customMicroInput, setCustomMicroInput] = useState('');
 
   useEffect(() => {
+    WebApp.ready(); // Сообщаем Телеграму, что приложение готово
     const initData = WebApp.initDataUnsafe;
     const user = initData?.user;
     
@@ -53,23 +54,24 @@ function App() {
     const area = parseFloat(inputArea);
     const price = parseFloat(inputPrice);
 
-    await supabase
+    // Добавлена проверка на ошибки при сохранении!
+    const { error } = await supabase
       .from('user_progress')
       .update({ target_area: area, total_price: price })
       .eq('telegram_id', userData.id);
+
+    if (error) {
+      alert("Ошибка сохранения! Проверьте, отключен ли RLS в Supabase. Детали: " + error.message);
+      return;
+    }
 
     setTargets({ area, price });
     WebApp.HapticFeedback.notificationOccurred('success');
   };
 
-  // Обновленная функция для кастомных сумм
   const addDeposit = async (type) => {
     if (!userData) return;
-    
-    // Берем значение из нужного инпута
     const amount = type === 'main' ? parseFloat(customMainInput) : parseFloat(customMicroInput);
-    
-    // Защита от пустых или нулевых значений
     if (!amount || isNaN(amount) || amount <= 0) return;
 
     const newMain = type === 'main' ? savings.main + amount : savings.main;
@@ -82,26 +84,23 @@ function App() {
       .update({ main_savings: newMain, micro_savings: newMicro })
       .eq('telegram_id', userData.id);
       
-    // Очищаем инпут после успешного добавления
     if (type === 'main') setCustomMainInput('');
     if (type === 'micro') setCustomMicroInput('');
     
     WebApp.HapticFeedback.impactOccurred('medium');
   };
 
-  // Новая функция: Сброс прогресса
-  const resetProgress = async () => {
+  const resetProject = async () => {
     if (!userData) return;
-    
-    // Системное окно подтверждения (нативное для iOS/Android)
-    const isConfirmed = window.confirm("Вы уверены, что хотите обнулить весь прогресс? Это действие нельзя отменить.");
+    const isConfirmed = window.confirm("Вы уверены, что хотите обнулить весь проект и начать заново? Данные будут удалены.");
     
     if (isConfirmed) {
         setSavings({ main: 0, micro: 0 });
+        setTargets({ area: null, price: null });
         
         await supabase
           .from('user_progress')
-          .update({ main_savings: 0, micro_savings: 0 })
+          .update({ main_savings: 0, micro_savings: 0, target_area: null, total_price: null })
           .eq('telegram_id', userData.id);
           
         WebApp.HapticFeedback.notificationOccurred('warning');
@@ -137,23 +136,23 @@ function App() {
             <h1>Метрика</h1>
             <p>Студия: {targets.area} m² | Цель: {targets.price.toLocaleString('ru-RU')} ₽</p>
           </div>
-          <button onClick={resetProgress} className="reset-btn" title="Сбросить прогресс">↺</button>
       </div>
       
       <Blueprint mainSaved={savings.main} microSaved={savings.micro} totalPrice={targets.price} />
       
       <div className="stats-card">
-        <h2>Моя территория: {progress.purchasedCm2.toLocaleString('ru-RU')} cm²</h2>
-        <p>Или {progress.purchasedM2} m²</p>
+        {/* Поменяли местами м2 и см2 */}
+        <h2>Моя территория: {progress.purchasedM2} m²</h2>
+        <p>Или {progress.purchasedCm2.toLocaleString('ru-RU')} cm²</p>
         <p>Накоплено: {progress.totalSaved.toLocaleString('ru-RU')} ₽ ({progress.percentComplete}%)</p>
       </div>
 
       <div className="actions">
-        {/* Инпут + Кнопка для Основного взноса */}
-        <div className="deposit-row">
+        {/* Блок основного взноса */}
+        <div className="deposit-column">
             <input 
                 type="number" 
-                placeholder="Сумма взноса..." 
+                placeholder="Внесите сумму основного пополнения" 
                 value={customMainInput}
                 onChange={(e) => setCustomMainInput(e.target.value)}
                 className="deposit-input"
@@ -161,18 +160,21 @@ function App() {
             <button onClick={() => addDeposit('main')} className="main-btn-small">Внести</button>
         </div>
 
-        {/* Инпут + Кнопка для Копейки */}
-        <div className="deposit-row">
+        {/* Блок Копейки */}
+        <div className="deposit-column">
             <input 
                 type="number" 
-                placeholder="Сумма сдачи..." 
+                placeholder='Внесите сумму "Копейка метр бережет"' 
                 value={customMicroInput}
                 onChange={(e) => setCustomMicroInput(e.target.value)}
                 className="deposit-input"
             />
-            <button onClick={() => addDeposit('micro')} className="micro-btn-small">Копейка</button>
+            <button onClick={() => addDeposit('micro')} className="micro-btn-small">Внести КОПЕЙКА МЕТР БЕРЕЖЕТ</button>
         </div>
       </div>
+
+      {/* Кнопка сброса всего проекта */}
+      <button onClick={resetProject} className="reset-project-btn">Начать заново (Сбросить проект)</button>
     </div>
   );
 }

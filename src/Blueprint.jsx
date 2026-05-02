@@ -6,7 +6,6 @@ const Blueprint = ({ mainSaved, microSaved, totalPrice }) => {
   const mainPercent = Math.min((mainSaved / totalPrice) * 100, 100);
   const microPercent = Math.min((microSaved / totalPrice) * 100, 100 - mainPercent);
 
-  // В этой новой проекции пол вытянут от Y=40 (дальний угол) до Y=190 (ближний угол)
   const floorHeight = 150; 
   const mainHeight = (mainPercent / 100) * floorHeight;
   const microHeight = (microPercent / 100) * floorHeight;
@@ -38,30 +37,35 @@ const Blueprint = ({ mainSaved, microSaved, totalPrice }) => {
           </clipPath>
         </defs>
 
-        {/* --- ПОЛ (Основная площадь) --- */}
-        {/* Форма вытянутого прямоугольника в изометрии */}
-        <path id="floor-area" d="M 120 190 L 40 140 L 120 40 L 200 90 Z" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+        {/* --- СЛОЙ 1: БАЗОВЫЙ КАРКАС (Всегда виден, полупрозрачный) --- */}
+        <g opacity="0.3">
+          <path d="M 120 190 L 40 140 L 120 40 L 200 90 Z" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+          <path d="M 40 140 L 120 40 L 120 10 L 40 110 Z" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+          <path d="M 200 90 L 120 40 L 120 10 L 200 60 Z" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+          <path d="M 120 90 L 160 65 L 160 35 L 120 60 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+        </g>
 
-        {/* --- ЗАЛИВКА ТЕРРИТОРИИ --- */}
-        <use href="#floor-area" fill="url(#main-glow)" clipPath="url(#main-fill-clip)" opacity="0.85" />
-        <use href="#floor-area" fill="url(#kopeika-stars)" clipPath="url(#micro-fill-clip)" />
-        <use href="#floor-area" fill="none" stroke="#FF5E00" strokeWidth="2" clipPath="url(#main-fill-clip)" opacity="0.6" style={{ filter: 'blur(3px)' }} />
+        {/* --- СЛОЙ 2: ОСНОВНЫЕ СБЕРЕЖЕНИЯ (Пол и стены, обрезанные маской) --- */}
+        <g clipPath="url(#main-fill-clip)">
+          {/* Яркий пол */}
+          <path d="M 120 190 L 40 140 L 120 40 L 200 90 Z" fill="url(#main-glow)" opacity="0.85" />
+          {/* Возводящиеся стены (Окрашиваются в тон пола) */}
+          <path d="M 40 140 L 120 40 L 120 10 L 40 110 Z" fill="rgba(255, 94, 0, 0.3)" stroke="#FF5E00" strokeWidth="1" />
+          <path d="M 200 90 L 120 40 L 120 10 L 200 60 Z" fill="rgba(255, 94, 0, 0.15)" stroke="#FF5E00" strokeWidth="1" />
+          <path d="M 120 90 L 160 65 L 160 35 L 120 60 Z" fill="rgba(255, 94, 0, 0.2)" stroke="#FF5E00" strokeWidth="1" />
+        </g>
 
-        {/* --- КАРКАС И СТЕНЫ --- */}
-        {/* Левая внешняя стена (с окнами) */}
-        <path d="M 40 140 L 120 40 L 120 10 L 40 110 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-        {/* Вырезы под окна на левой стене (прозрачные) */}
-        <path d="M 60 115 L 80 90 L 80 50 L 60 75 Z" fill="#0B0B0F" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
-        <path d="M 90 78 L 110 53 L 110 23 L 90 48 Z" fill="#0B0B0F" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
+        {/* --- СЛОЙ 3: КОПЕЙКА (Пол и стены, обрезанные маской, поверх основы) --- */}
+        <g clipPath="url(#micro-fill-clip)">
+          {/* Пол текстуры */}
+          <path d="M 120 190 L 40 140 L 120 40 L 200 90 Z" fill="url(#kopeika-stars)" />
+          {/* Стены текстуры */}
+          <path d="M 40 140 L 120 40 L 120 10 L 40 110 Z" fill="rgba(255, 226, 89, 0.3)" stroke="#FFE259" strokeWidth="1" />
+          <path d="M 200 90 L 120 40 L 120 10 L 200 60 Z" fill="rgba(255, 226, 89, 0.15)" stroke="#FFE259" strokeWidth="1" />
+          <path d="M 120 90 L 160 65 L 160 35 L 120 60 Z" fill="rgba(255, 226, 89, 0.2)" stroke="#FFE259" strokeWidth="1" />
+        </g>
 
-        {/* Правая внешняя стена */}
-        <path d="M 200 90 L 120 40 L 120 10 L 200 60 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-
-        {/* Внутренняя перегородка (Санузел) - отсекает верхний правый угол */}
-        <path d="M 120 90 L 160 65 L 160 35 L 120 60 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-        <path d="M 120 90 L 140 115 L 140 85 L 120 60 Z" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-
-        {/* Дверной проем (Вход внизу слева) */}
+        {/* Входная дверь (поверх всего) */}
         <path d="M 100 177 L 115 186 L 115 156 L 100 147 Z" fill="#0B0B0F" stroke="none" />
       </svg>
     </div>
