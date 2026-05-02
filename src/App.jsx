@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import WebApp from '@twa-dev/sdk';
 import { supabase } from './supabaseClient';
 import { calculateProgress } from './utils';
 import Blueprint from './Blueprint';
@@ -17,23 +16,38 @@ function App() {
   const [customMainInput, setCustomMainInput] = useState('');
   const [customMicroInput, setCustomMicroInput] = useState('');
 
+  // Обращаемся к Телеграму напрямую, без глючных библиотек!
+  const WebApp = window.Telegram?.WebApp;
+
   useEffect(() => {
-    try {
-      WebApp.ready();
-      const initData = WebApp.initDataUnsafe;
-      const user = initData?.user;
-      
-      if (user) {
-        setUserData(user);
-        fetchUserProgress(user.id);
-      } else {
-        setUserData({ id: 12345, first_name: 'TestUser' });
-        fetchUserProgress(12345);
+    const initTelegram = async () => {
+      try {
+        if (WebApp) {
+          WebApp.ready();
+          WebApp.expand(); // Сразу разворачиваем приложение на весь экран
+        }
+
+        const user = WebApp?.initDataUnsafe?.user;
+        
+        if (user) {
+          // Если Телеграм на айфоне отдал данные
+          setUserData(user);
+          await fetchUserProgress(user.id);
+        } else {
+          // Если что-то пошло не так, все равно пускаем пользователя (ID-заглушка)
+          const fallbackUser = { id: 1234567, first_name: 'Архитектор' };
+          setUserData(fallbackUser);
+          await fetchUserProgress(fallbackUser.id);
+        }
+      } catch (err) {
+        console.error("Ошибка инициализации:", err);
+        const fallbackUser = { id: 1234567, first_name: 'Архитектор' };
+        setUserData(fallbackUser);
+        await fetchUserProgress(fallbackUser.id);
       }
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
+    };
+
+    initTelegram();
   }, []);
 
   const fetchUserProgress = async (telegramId) => {
@@ -57,29 +71,22 @@ function App() {
     }
   };
 
-  // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ ---
   const saveTargets = async () => {
     if (!inputArea || !inputPrice) {
       alert("Пожалуйста, заполните оба поля.");
       return;
     }
 
-    if (!userData) {
-      alert("Телеграм еще не передал данные. Подождите секунду.");
-      return;
-    }
-
     const area = parseFloat(inputArea);
     const price = parseFloat(inputPrice);
 
-    // Используем upsert: создаем строку, если ее нет
+    // Сохраняем в Supabase с помощью Upsert (создать или обновить)
     const { error } = await supabase
       .from('user_progress')
       .upsert({ 
         telegram_id: userData.id, 
         target_area: area, 
         total_price: price,
-        // Если создаем с нуля, базовые сбережения = 0
         main_savings: savings.main || 0, 
         micro_savings: savings.micro || 0
       }, { onConflict: 'telegram_id' });
@@ -90,7 +97,7 @@ function App() {
     }
 
     setTargets({ area, price });
-    try { WebApp.HapticFeedback.notificationOccurred('success'); } catch(e){}
+    try { WebApp?.HapticFeedback?.notificationOccurred('success'); } catch(e){}
   };
 
   const addDeposit = async (type) => {
@@ -115,7 +122,7 @@ function App() {
         .update({ main_savings: newMain, micro_savings: newMicro })
         .eq('telegram_id', userData.id);
         
-      WebApp.HapticFeedback.impactOccurred('medium');
+      try { WebApp?.HapticFeedback?.impactOccurred('medium'); } catch(e){}
     } catch (err) {
       console.error(err);
     }
@@ -135,7 +142,7 @@ function App() {
             .update({ main_savings: 0, micro_savings: 0, target_area: null, total_price: null })
             .eq('telegram_id', userData.id);
             
-          WebApp.HapticFeedback.notificationOccurred('warning');
+          try { WebApp?.HapticFeedback?.notificationOccurred('warning'); } catch(e){}
         } catch (err) {
           console.error(err);
         }
