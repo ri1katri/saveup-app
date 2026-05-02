@@ -1,122 +1,145 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from 'react';
+import WebApp from '@twa-dev/sdk';
+import { supabase } from './supabaseClient';
+import { calculateProgress } from './utils';
+import Blueprint from './Blueprint';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [userData, setUserData] = useState(null);
+  const [savings, setSavings] = useState({ main: 0, micro: 0 });
+  
+  // Добавляем состояние для целей пользователя
+  const [targets, setTargets] = useState({ area: null, price: null });
+  
+  const [loading, setLoading] = useState(true);
+
+  // Временные состояния для формы ввода
+  const [inputArea, setInputArea] = useState('');
+  const [inputPrice, setInputPrice] = useState('');
+
+  useEffect(() => {
+    const initData = WebApp.initDataUnsafe;
+    const user = initData?.user;
+    
+    if (user) {
+      setUserData(user);
+      fetchUserProgress(user.id);
+    } else {
+      setUserData({ id: 12345, first_name: 'TestUser' });
+      fetchUserProgress(12345);
+    }
+  }, []);
+
+  const fetchUserProgress = async (telegramId) => {
+    const { data, error } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('telegram_id', telegramId)
+      .single();
+
+    if (error && error.code === 'PGRST116') {
+      await supabase.from('user_progress').insert([{ telegram_id: telegramId }]);
+    } else if (data) {
+      setSavings({ main: data.main_savings, micro: data.micro_savings });
+      // Загружаем цели из базы
+      setTargets({ area: data.target_area, price: data.total_price });
+    }
+    setLoading(false);
+  };
+
+  const saveTargets = async () => {
+    if (!inputArea || !inputPrice || !userData) return;
+    
+    const area = parseFloat(inputArea);
+    const price = parseFloat(inputPrice);
+
+    // Сохраняем в базу данных
+    await supabase
+      .from('user_progress')
+      .update({ target_area: area, total_price: price })
+      .eq('telegram_id', userData.id);
+
+    // Обновляем экран
+    setTargets({ area, price });
+    WebApp.HapticFeedback.notificationOccurred('success');
+  };
+
+  const addDeposit = async (amount, type = 'main') => {
+    if (!userData) return;
+    const newMain = type === 'main' ? savings.main + amount : savings.main;
+    const newMicro = type === 'micro' ? savings.micro + amount : savings.micro;
+
+    setSavings({ main: newMain, micro: newMicro });
+
+    await supabase
+      .from('user_progress')
+      .update({ main_savings: newMain, micro_savings: newMicro })
+      .eq('telegram_id', userData.id);
+      
+    WebApp.HapticFeedback.impactOccurred('medium');
+  };
+
+  if (loading) return <div className="loading">Подготовка документов...</div>;
+
+  // ЭКРАН 1: ОНБОРДИНГ (Если цели еще не заданы)
+  if (!targets.area || !targets.price) {
+    return (
+      <div className="onboarding">
+        <h1>Добро пожаловать</h1>
+        <p>Давайте спроектируем ваше будущее жилье.</p>
+        
+        <div className="input-group">
+          <label>Желаемая площадь (m²)</label>
+          <input 
+            type="number" 
+            placeholder="Например: 30" 
+            value={inputArea} 
+            onChange={(e) => setInputArea(e.target.value)} 
+          />
+        </div>
+
+        <div className="input-group">
+          <label>Ориентировочная цена (₽)</label>
+          <input 
+            type="number" 
+            placeholder="Например: 15000000" 
+            value={inputPrice} 
+            onChange={(e) => setInputPrice(e.target.value)} 
+          />
+        </div>
+
+        <button onClick={saveTargets} className="main-btn">Создать проект</button>
+      </div>
+    );
+  }
+
+  // ЭКРАН 2: ГЛАВНЫЙ ДАШБОРД (Если цели заданы)
+  const progress = calculateProgress(savings.main, savings.micro, targets.area, targets.price);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
+    <div className="dashboard">
+      <h1>Метрика</h1>
+      <p>Проект: {targets.area} m² | Цель: {targets.price.toLocaleString('ru-RU')} ₽</p>
+      
+      <Blueprint mainSaved={savings.main} microSaved={savings.micro} totalPrice={targets.price} />
+      
+      <div className="stats-card">
+        <h2>Моя территория: {progress.purchasedCm2.toLocaleString('ru-RU')} cm²</h2>
+        <p>Или {progress.purchasedM2} m²</p>
+        <p>Накоплено: {progress.totalSaved.toLocaleString('ru-RU')} ₽ ({progress.percentComplete}%)</p>
+      </div>
+
+      <div className="actions">
+        <button onClick={() => addDeposit(5000, 'main')} className="main-btn">
+          Взнос (+5000 ₽)
         </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <button onClick={() => addDeposit(150, 'micro')} className="micro-btn">
+          Копейка (+150 ₽)
+        </button>
+      </div>
+    </div>
+  );
 }
 
-export default App
+export default App;
