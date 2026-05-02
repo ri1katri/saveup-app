@@ -165,3 +165,65 @@ button:active {
   color: #FFF;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+/* --- НОВЫЕ СТИЛИ ДЛЯ ВВОДА И КНОПОК --- */
+
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.reset-btn {
+    background: transparent;
+    color: #8E8E9E;
+    font-size: 20px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    margin-top: 5px;
+}
+
+.reset-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #FFF;
+}
+
+.deposit-row {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+}
+
+.deposit-input {
+    flex-grow: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #FFF;
+    font-size: 16px;
+    padding: 0 16px;
+    border-radius: 16px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.deposit-input:focus {
+    border-color: #FF5E00;
+}
+
+.main-btn-small {
+    background: linear-gradient(135deg, #FF5E00, #FF9100);
+    color: #FFF;
+    min-width: 110px;
+    padding: 16px;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(255, 94, 0, 0.2);
+}
+
+.micro-btn-small {
+    background: rgba(255, 255, 255, 0.08);
+    color: #FFF;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    min-width: 110px;
+    padding: 16px;
+    border-radius: 16px;
+}
