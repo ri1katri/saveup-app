@@ -1,17 +1,28 @@
 import React from 'react';
 
 const Blueprint = ({ mainSaved, microSaved, totalPrice }) => {
-  if (!totalPrice) return null;
+  // Защита от деления на 0
+  const safePrice = Number(totalPrice) || 1; 
+  const safeMain = Number(mainSaved) || 0;
+  const safeMicro = Number(microSaved) || 0;
 
-  const mainPercent = Math.min((mainSaved / totalPrice) * 100, 100);
-  const microPercent = Math.min((microSaved / totalPrice) * 100, 100 - mainPercent);
+  let mainPercent = (safeMain / safePrice) * 100;
+  let microPercent = (safeMicro / safePrice) * 100;
+
+  // Блокируем любые NaN или Бесконечности
+  if (isNaN(mainPercent) || !isFinite(mainPercent)) mainPercent = 0;
+  if (isNaN(microPercent) || !isFinite(microPercent)) microPercent = 0;
+
+  mainPercent = Math.min(mainPercent, 100);
+  microPercent = Math.min(microPercent, 100 - mainPercent);
 
   const floorHeight = 150; 
   const mainHeight = (mainPercent / 100) * floorHeight;
   const microHeight = (microPercent / 100) * floorHeight;
 
-  const mainY = 190 - mainHeight;
-  const microY = mainY - microHeight;
+  // Даже если случится чудо, переменные Y никогда не будут пустыми
+  const mainY = 190 - (mainHeight || 0);
+  const microY = mainY - (microHeight || 0);
 
   return (
     <div className="blueprint-wrapper">
@@ -29,15 +40,14 @@ const Blueprint = ({ mainSaved, microSaved, totalPrice }) => {
           </pattern>
 
           <clipPath id="main-fill-clip">
-            <rect x="0" y={mainY} width="240" height={mainHeight} style={{ transition: 'all 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
+            <rect x="0" y={mainY} width="240" height={mainHeight || 0} style={{ transition: 'all 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
           </clipPath>
 
           <clipPath id="micro-fill-clip">
-            <rect x="0" y={microY} width="240" height={microHeight} style={{ transition: 'all 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
+            <rect x="0" y={microY} width="240" height={microHeight || 0} style={{ transition: 'all 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
           </clipPath>
         </defs>
 
-        {/* --- СЛОЙ 1: БАЗОВЫЙ КАРКАС (Всегда виден, полупрозрачный) --- */}
         <g opacity="0.3">
           <path d="M 120 190 L 40 140 L 120 40 L 200 90 Z" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
           <path d="M 40 140 L 120 40 L 120 10 L 40 110 Z" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
@@ -45,27 +55,20 @@ const Blueprint = ({ mainSaved, microSaved, totalPrice }) => {
           <path d="M 120 90 L 160 65 L 160 35 L 120 60 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
         </g>
 
-        {/* --- СЛОЙ 2: ОСНОВНЫЕ СБЕРЕЖЕНИЯ (Пол и стены, обрезанные маской) --- */}
         <g clipPath="url(#main-fill-clip)">
-          {/* Яркий пол */}
           <path d="M 120 190 L 40 140 L 120 40 L 200 90 Z" fill="url(#main-glow)" opacity="0.85" />
-          {/* Возводящиеся стены (Окрашиваются в тон пола) */}
           <path d="M 40 140 L 120 40 L 120 10 L 40 110 Z" fill="rgba(255, 94, 0, 0.3)" stroke="#FF5E00" strokeWidth="1" />
           <path d="M 200 90 L 120 40 L 120 10 L 200 60 Z" fill="rgba(255, 94, 0, 0.15)" stroke="#FF5E00" strokeWidth="1" />
           <path d="M 120 90 L 160 65 L 160 35 L 120 60 Z" fill="rgba(255, 94, 0, 0.2)" stroke="#FF5E00" strokeWidth="1" />
         </g>
 
-        {/* --- СЛОЙ 3: КОПЕЙКА (Пол и стены, обрезанные маской, поверх основы) --- */}
         <g clipPath="url(#micro-fill-clip)">
-          {/* Пол текстуры */}
           <path d="M 120 190 L 40 140 L 120 40 L 200 90 Z" fill="url(#kopeika-stars)" />
-          {/* Стены текстуры */}
           <path d="M 40 140 L 120 40 L 120 10 L 40 110 Z" fill="rgba(255, 226, 89, 0.3)" stroke="#FFE259" strokeWidth="1" />
           <path d="M 200 90 L 120 40 L 120 10 L 200 60 Z" fill="rgba(255, 226, 89, 0.15)" stroke="#FFE259" strokeWidth="1" />
           <path d="M 120 90 L 160 65 L 160 35 L 120 60 Z" fill="rgba(255, 226, 89, 0.2)" stroke="#FFE259" strokeWidth="1" />
         </g>
 
-        {/* Входная дверь (поверх всего) */}
         <path d="M 100 177 L 115 186 L 115 156 L 100 147 Z" fill="#0B0B0F" stroke="none" />
       </svg>
     </div>
