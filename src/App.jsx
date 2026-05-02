@@ -27,7 +27,6 @@ function App() {
         setUserData(user);
         fetchUserProgress(user.id);
       } else {
-        // Заглушка для браузера
         setUserData({ id: 12345, first_name: 'TestUser' });
         fetchUserProgress(12345);
       }
@@ -48,7 +47,6 @@ function App() {
       if (error && error.code === 'PGRST116') {
         await supabase.from('user_progress').insert([{ telegram_id: telegramId }]);
       } else if (data) {
-        // Жесткая защита: если данных нет, ставим 0
         setSavings({ main: Number(data.main_savings) || 0, micro: Number(data.micro_savings) || 0 });
         setTargets({ area: Number(data.target_area) || null, price: Number(data.total_price) || null });
       }
@@ -59,22 +57,40 @@ function App() {
     }
   };
 
+  // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ ---
   const saveTargets = async () => {
-    if (!inputArea || !inputPrice || !userData) return;
+    if (!inputArea || !inputPrice) {
+      alert("Пожалуйста, заполните оба поля.");
+      return;
+    }
+
+    if (!userData) {
+      alert("Телеграм еще не передал данные. Подождите секунду.");
+      return;
+    }
+
     const area = parseFloat(inputArea);
     const price = parseFloat(inputPrice);
 
-    try {
-      await supabase
-        .from('user_progress')
-        .update({ target_area: area, total_price: price })
-        .eq('telegram_id', userData.id);
+    // Используем upsert: создаем строку, если ее нет
+    const { error } = await supabase
+      .from('user_progress')
+      .upsert({ 
+        telegram_id: userData.id, 
+        target_area: area, 
+        total_price: price,
+        // Если создаем с нуля, базовые сбережения = 0
+        main_savings: savings.main || 0, 
+        micro_savings: savings.micro || 0
+      }, { onConflict: 'telegram_id' });
 
-      setTargets({ area, price });
-      WebApp.HapticFeedback.notificationOccurred('success');
-    } catch (err) {
-      alert("Не удалось сохранить. Проверьте интернет.");
+    if (error) {
+      alert("Ошибка БД: " + error.message);
+      return;
     }
+
+    setTargets({ area, price });
+    try { WebApp.HapticFeedback.notificationOccurred('success'); } catch(e){}
   };
 
   const addDeposit = async (type) => {
@@ -126,10 +142,8 @@ function App() {
     }
   };
 
-  // Базовый экран загрузки
   if (loading) return <div style={{padding: '40px', textAlign: 'center', color: '#A0A0B0'}}>Загрузка чертежей...</div>;
 
-  // Экран онбординга
   if (!targets.area || !targets.price) {
     return (
       <div className="onboarding">
@@ -148,13 +162,11 @@ function App() {
     );
   }
 
-  // --- ТОТАЛЬНАЯ ЗАЩИТА ВЫЧИСЛЕНИЙ ---
   const safeMain = Number(savings.main) || 0;
   const safeMicro = Number(savings.micro) || 0;
   const safeArea = Number(targets.area) || 0;
   const safePrice = Number(targets.price) || 0;
 
-  // Если утилита сломается, отдаем нули, но не крашим приложение
   const progress = calculateProgress(safeMain, safeMicro, safeArea, safePrice) || {
     totalSaved: 0,
     purchasedCm2: 0,
