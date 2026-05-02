@@ -11,8 +11,7 @@ const Blueprint = ({ mainSaved, microSaved, totalPrice }) => {
   if (isNaN(mainPercent) || !isFinite(mainPercent)) mainPercent = 0;
   if (isNaN(microPercent) || !isFinite(microPercent)) microPercent = 0;
 
-  // ИСПРАВЛЕНИЕ БАГА №2: Строго ограничиваем рост. 
-  // Если сумма больше 100%, визуально объем останавливается ровно на краях стен.
+  // Строгий лимит в 100% (даже при перевыполнении план не вылезет за крышу)
   if (mainPercent > 100) {
     mainPercent = 100;
     microPercent = 0;
@@ -20,80 +19,89 @@ const Blueprint = ({ mainSaved, microSaved, totalPrice }) => {
     microPercent = 100 - mainPercent;
   }
 
-  // Максимальная высота 3D-стен = 60 единиц
-  const MAX_HEIGHT = 60; 
-  const h1 = (mainPercent / 100) * MAX_HEIGHT;
-  const h2 = (microPercent / 100) * MAX_HEIGHT;
+  // Вся высота чертежа: от Y=220 (ближний угол пола) до Y=10 (верхний край стен). Итого 210 единиц.
+  const TOTAL_HEIGHT = 210; 
+  const mainHeight = (mainPercent / 100) * TOTAL_HEIGHT;
+  const microHeight = (microPercent / 100) * TOTAL_HEIGHT;
+
+  const mainY = 220 - mainHeight;
+  const microY = mainY - microHeight;
 
   return (
     <div className="blueprint-wrapper">
       <svg viewBox="0 0 240 240" className="blueprint-svg">
         <defs>
-          {/* Яркий градиент для поверхности */}
           <linearGradient id="main-glow" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#FF7A00" />
-            <stop offset="100%" stopColor="#FFB300" />
+            <stop offset="0%" stopColor="#FF5E00" />
+            <stop offset="100%" stopColor="#FFAE00" />
           </linearGradient>
 
-          {/* Паттерн для Копейки */}
-          <pattern id="kopeika-pattern" width="30" height="30" patternUnits="userSpaceOnUse">
-            <rect width="30" height="30" fill="#FFD700" /> 
-            <circle cx="6" cy="6" r="1.5" fill="#FFFFFF" opacity="0.8" />
-            <circle cx="22" cy="18" r="1" fill="#FFFFFF" opacity="0.9" />
-            <circle cx="12" cy="26" r="1" fill="#FFFFFF" opacity="0.5" />
+          <pattern id="kopeika-pattern" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="4" cy="4" r="1.5" fill="#FFE259" opacity="0.8" />
+            <circle cx="14" cy="12" r="1" fill="#FFA751" opacity="0.9" />
+            <circle cx="8" cy="18" r="2" fill="#FFFFFF" opacity="0.5" />
           </pattern>
+
+          {/* Шторки для эффекта "сканера" */}
+          <clipPath id="main-fill-clip">
+            <rect x="0" y={mainY} width="240" height={mainHeight} style={{ transition: 'all 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
+          </clipPath>
+
+          <clipPath id="micro-fill-clip">
+            <rect x="0" y={microY} width="240" height={microHeight} style={{ transition: 'all 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
+          </clipPath>
         </defs>
 
-        {/* 1. ПУСТАЯ КОМНАТА (Задние стены и темный пол) */}
+        {/* 1. БАЗОВЫЙ ЧЕРТЕЖ (Всегда виден, темный и стильный) */}
         <g>
           {/* Пол */}
-          <path d="M 120 220 L 40 170 L 120 70 L 200 120 Z" fill="#1C1C24" stroke="#333344" strokeWidth="1" />
+          <path id="surface-floor" d="M 120 220 L 40 170 L 120 70 L 200 120 Z" fill="#1C1C24" stroke="#333344" strokeWidth="1" />
           {/* Левая стена */}
-          <path d="M 40 170 L 120 70 L 120 10 L 40 110 Z" fill="#252530" stroke="#333344" strokeWidth="1" />
+          <path id="surface-left" d="M 40 170 L 120 70 L 120 10 L 40 110 Z" fill="#252530" stroke="#333344" strokeWidth="1" />
           {/* Правая стена */}
-          <path d="M 200 120 L 120 70 L 120 10 L 200 60 Z" fill="#20202A" stroke="#333344" strokeWidth="1" />
+          <path id="surface-right" d="M 200 120 L 120 70 L 120 10 L 200 60 Z" fill="#20202A" stroke="#333344" strokeWidth="1" />
           
-          {/* Детали: затемненные окна на левой стене */}
-          <path d="M 55 145 L 75 120 L 75 80 L 55 105 Z" fill="#15151E" stroke="#333344" strokeWidth="0.5" />
-          <path d="M 85 107 L 105 82 L 105 42 L 85 67 Z" fill="#15151E" stroke="#333344" strokeWidth="0.5" />
+          {/* Вырезы окон */}
+          <path d="M 55 145 L 75 120 L 75 80 L 55 105 Z" fill="#0B0B0F" stroke="#333344" strokeWidth="0.5" />
+          <path d="M 85 107 L 105 82 L 105 42 L 85 67 Z" fill="#0B0B0F" stroke="#333344" strokeWidth="0.5" />
         </g>
 
-        {/* 2. ОСНОВНЫЕ СБЕРЕЖЕНИЯ (Растущий 3D-объем) */}
-        {h1 > 0 && (
-          <g>
-            {/* Левая боковая стенка заливки */}
-            <path d={`M 120 220 L 40 170 L 40 ${170 - h1} L 120 ${220 - h1} Z`} fill="#D95C00" />
-            {/* Правая боковая стенка заливки */}
-            <path d={`M 120 220 L 200 120 L 200 ${120 - h1} L 120 ${220 - h1} Z`} fill="#F26B00" />
-            {/* Верхняя светящаяся поверхность */}
-            <path d={`M 120 ${220 - h1} L 40 ${170 - h1} L 120 ${70 - h1} L 200 ${120 - h1} Z`} fill="url(#main-glow)" />
-            {/* Подсветка граней для реализма */}
-            <line x1="40" y1={170 - h1} x2="120" y2={220 - h1} stroke="#FFAA00" strokeWidth="1.5" />
-            <line x1="120" y1={220 - h1} x2="200" y2={120 - h1} stroke="#FFAA00" strokeWidth="1.5" />
-          </g>
-        )}
+        {/* 2. ЗАЛИВКА ОСНОВНОГО ПРОГРЕССА (Голограмма) */}
+        {/* Применяем маску ко всей группе, внутри делаем элементы прозрачными */}
+        <g clipPath="url(#main-fill-clip)">
+          {/* Закрашиваем пол (полупрозрачно) */}
+          <use href="#surface-floor" fill="url(#main-glow)" opacity="0.4" />
+          {/* Подсвечиваем контур пола */}
+          <use href="#surface-floor" fill="none" stroke="#FF7A00" strokeWidth="2" opacity="0.8" />
+          
+          {/* Закрашиваем стены (сильнее прозрачность, чтобы не давили) */}
+          <use href="#surface-left" fill="#FF7A00" opacity="0.15" />
+          <use href="#surface-right" fill="#FFB300" opacity="0.15" />
+          
+          {/* Подсвечиваем контуры стен */}
+          <use href="#surface-left" fill="none" stroke="#FF7A00" strokeWidth="1.5" opacity="0.6" />
+          <use href="#surface-right" fill="none" stroke="#FFB300" strokeWidth="1.5" opacity="0.6" />
 
-        {/* 3. КОПЕЙКА (Ложится вторым 3D-слоем ровно поверх основного) */}
-        {h2 > 0 && (
-          <g>
-            <path d={`M 120 ${220 - h1} L 40 ${170 - h1} L 40 ${170 - h1 - h2} L 120 ${220 - h1 - h2} Z`} fill="#CC9900" />
-            <path d={`M 120 ${220 - h1} L 200 ${120 - h1} L 200 ${120 - h1 - h2} L 120 ${220 - h1 - h2} Z`} fill="#E6AC00" />
-            <path d={`M 120 ${220 - h1 - h2} L 40 ${170 - h1 - h2} L 120 ${70 - h1 - h2} L 200 ${120 - h1 - h2} Z`} fill="url(#kopeika-pattern)" />
-            <line x1="40" y1={170 - h1 - h2} x2="120" y2={220 - h1 - h2} stroke="#FFFFFF" strokeWidth="1.5" opacity="0.8" />
-            <line x1="120" y1={220 - h1 - h2} x2="200" y2={120 - h1 - h2} stroke="#FFFFFF" strokeWidth="1.5" opacity="0.8" />
-          </g>
-        )}
-        
-        {/* 4. КАРКАС ПЕРЕДНИХ СТЕН (Эффект стеклянного аквариума) */}
-        <g>
-          {/* Вертикальные стеклянные грани */}
-          <line x1="40" y1="170" x2="40" y2="110" stroke="#444455" strokeWidth="1" />
-          <line x1="120" y1="220" x2="120" y2="160" stroke="#555566" strokeWidth="1.5" strokeDasharray="3 3" /> 
-          <line x1="200" y1="120" x2="200" y2="60" stroke="#444455" strokeWidth="1" />
-          {/* Верхние ребра стеклянного потолка */}
-          <line x1="40" y1="110" x2="120" y2="160" stroke="#555566" strokeWidth="1.5" strokeDasharray="3 3" />
-          <line x1="120" y1="160" x2="200" y2="60" stroke="#555566" strokeWidth="1.5" strokeDasharray="3 3" />
+          {/* Светящаяся "линия сканера", показывающая текущий уровень */}
+          <line x1="0" y1={mainY} x2="240" y2={mainY} stroke="#FF7A00" strokeWidth="2" opacity="0.8" style={{ filter: 'blur(1px)' }} />
         </g>
+
+        {/* 3. ЗАЛИВКА КОПЕЙКИ (Звездная текстура поверх) */}
+        <g clipPath="url(#micro-fill-clip)">
+          <use href="#surface-floor" fill="url(#kopeika-pattern)" opacity="0.8" />
+          <use href="#surface-left" fill="#FFE259" opacity="0.2" />
+          <use href="#surface-right" fill="#FFE259" opacity="0.2" />
+          
+          <use href="#surface-floor" fill="none" stroke="#FFE259" strokeWidth="1.5" opacity="0.8" />
+          <use href="#surface-left" fill="none" stroke="#FFE259" strokeWidth="1" opacity="0.6" />
+          <use href="#surface-right" fill="none" stroke="#FFE259" strokeWidth="1" opacity="0.6" />
+          
+          {/* Линия сканера для Копейки */}
+          <line x1="0" y1={microY} x2="240" y2={microY} stroke="#FFE259" strokeWidth="2" opacity="0.9" style={{ filter: 'blur(1px)' }} />
+        </g>
+
+        {/* Входная дверь (поверх всего) */}
+        <path d="M 100 200 L 115 185 L 115 155 L 100 170 Z" fill="#0B0B0F" stroke="none" />
       </svg>
     </div>
   );
